@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio_modbus::client::Context;
@@ -9,15 +10,29 @@ pub mod persistence;
 pub mod simulator;
 pub mod sim_commands;
 
+/// Connection parameters needed to re-establish a dropped TCP link.
+#[derive(Clone, Copy)]
+pub struct ConnectionParams {
+    pub addr: SocketAddr,
+    pub unit_id: u8,
+}
+
+/// Live connection + the params required to reconnect if the socket drops.
+pub struct DeviceEntry {
+    pub ctx: Arc<Mutex<Context>>,
+    pub params: ConnectionParams,
+}
+
 /// Per-device Modbus TCP connection, shared across async command calls.
-#[derive(Default)]
 pub struct DeviceState {
-    pub connections: Arc<Mutex<HashMap<String, Arc<Mutex<Context>>>>>,
+    pub connections: Arc<Mutex<HashMap<String, DeviceEntry>>>,
 }
 
 impl DeviceState {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            connections: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 }
 

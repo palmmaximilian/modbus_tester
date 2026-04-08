@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 use tokio_modbus::client::tcp;
 use tokio_modbus::prelude::*;
 
-use crate::DeviceState;
+use crate::{ConnectionParams, DeviceEntry, DeviceState};
 use crate::persistence::{
     DeviceRecord, WatchlistEntry,
     load_devices_file, save_devices_file,
@@ -49,7 +49,10 @@ pub async fn connect_device(
         .map_err(|e| e.to_string())?;
 
     let mut connections = state.connections.lock().await;
-    connections.insert(device_id, Arc::new(Mutex::new(ctx)));
+    connections.insert(device_id, DeviceEntry {
+        ctx: Arc::new(Mutex::new(ctx)),
+        params: ConnectionParams { addr, unit_id },
+    });
     Ok(())
 }
 
@@ -59,8 +62,8 @@ pub async fn disconnect_device(
     device_id: String,
 ) -> CmdResult<()> {
     let mut connections = state.connections.lock().await;
-    if let Some(ctx_arc) = connections.remove(&device_id) {
-        let mut ctx = ctx_arc.lock().await;
+    if let Some(entry) = connections.remove(&device_id) {
+        let mut ctx = entry.ctx.lock().await;
         let _ = ctx.disconnect().await;
     }
     Ok(())
@@ -68,23 +71,53 @@ pub async fn disconnect_device(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+fn is_pipe_error(e: &str) -> bool {
+    e.contains("Broken pipe")
+        || e.contains("Connection reset")
+        || e.contains("os error 32")
+        || e.contains("os error 104")
+        || e.contains("BrokenPipe")
+}
+
 async fn with_device<F, Fut, T>(
     state: &DeviceState,
     device_id: &str,
     f: F,
 ) -> CmdResult<T>
 where
-    F: FnOnce(Arc<Mutex<tokio_modbus::client::Context>>) -> Fut,
+    F: Fn(Arc<Mutex<tokio_modbus::client::Context>>) -> Fut,
     Fut: std::future::Future<Output = CmdResult<T>>,
 {
-    let ctx_arc = {
+    let (ctx_arc, params) = {
         let connections = state.connections.lock().await;
-        connections
+        let entry = connections
             .get(device_id)
-            .cloned()
-            .ok_or_else(|| format!("Device '{device_id}' not connected"))?
+            .ok_or_else(|| format!("Device '{device_id}' not connected"))?;
+        (entry.ctx.clone(), entry.params)
     };
-    f(ctx_arc).await
+
+    let result = f(ctx_arc).await;
+
+    match result {
+        Err(ref e) if is_pipe_error(e) => {
+            // Connection was dropped by the device — reconnect and retry once.
+            let slave = Slave(params.unit_id);
+            match tcp::connect_slave(params.addr, slave).await {
+                Ok(new_ctx) => {
+                    let new_arc = Arc::new(Mutex::new(new_ctx));
+                    {
+                        let mut connections = state.connections.lock().await;
+                        if let Some(entry) = connections.get_mut(device_id) {
+                            entry.ctx = new_arc.clone();
+                        }
+                    }
+                    f(new_arc).await
+                }
+                Err(e) => Err(format!("Connection lost and reconnect failed: {e}")),
+            }
+        }
+        other => other,
+    }
 }
 
 /// Split a large read into Modbus-spec-compliant chunks.
@@ -235,12 +268,15 @@ pub async fn write_multiple_coils(
     start_address: u16,
     values: Vec<bool>,
 ) -> CmdResult<()> {
-    with_device(&state, &device_id, |ctx_arc| async move {
-        let mut ctx = ctx_arc.lock().await;
-        ctx.write_multiple_coils(start_address, &values)
-            .await
-            .map_err(|e| e.to_string())?
-            .map_err(|e| e.to_string())
+    with_device(&state, &device_id, |ctx_arc| {
+        let values = values.clone();
+        async move {
+            let mut ctx = ctx_arc.lock().await;
+            ctx.write_multiple_coils(start_address, &values)
+                .await
+                .map_err(|e| e.to_string())?
+                .map_err(|e| e.to_string())
+        }
     })
     .await
 }
@@ -252,12 +288,15 @@ pub async fn write_multiple_registers(
     start_address: u16,
     values: Vec<u16>,
 ) -> CmdResult<()> {
-    with_device(&state, &device_id, |ctx_arc| async move {
-        let mut ctx = ctx_arc.lock().await;
-        ctx.write_multiple_registers(start_address, &values)
-            .await
-            .map_err(|e| e.to_string())?
-            .map_err(|e| e.to_string())
+    with_device(&state, &device_id, |ctx_arc| {
+        let values = values.clone();
+        async move {
+            let mut ctx = ctx_arc.lock().await;
+            ctx.write_multiple_registers(start_address, &values)
+                .await
+                .map_err(|e| e.to_string())?
+                .map_err(|e| e.to_string())
+        }
     })
     .await
 }

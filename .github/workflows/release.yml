@@ -46,7 +46,8 @@ jobs:
             ## What's New
 
             ### Bug Fixes
-            - **Network scan false positives:** The IP scanner now only reports hosts where a TCP connection is fully established. Previously, hosts that immediately refused the connection (TCP RST) were incorrectly listed as discovered Modbus devices.
+            - **Broken pipe on write:** If a Modbus device drops the TCP connection due to an idle timeout, the next read or write now automatically reconnects and retries the operation transparently — no more "Broken pipe" errors.
+            - **Network scan false positives:** The IP scanner now only reports hosts where a TCP connection is fully established. Previously, hosts that immediately refused the connection (TCP RST) were incorrectly listed.
 
             ---
             See the assets below to download. Use the `.dmg` (macOS) or `.msi`/`.exe` (Windows) installer, or grab a portable zip that needs no installation.
