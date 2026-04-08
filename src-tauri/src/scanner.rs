@@ -32,7 +32,11 @@ pub async fn scan_range(
                 let ip = *ip;
                 let addr = SocketAddr::new(ip.into(), port);
                 tokio::spawn(async move {
-                    if timeout(probe_timeout, TcpStream::connect(addr)).await.is_ok() {
+                    if timeout(probe_timeout, TcpStream::connect(addr))
+                        .await
+                        .map(|r| r.is_ok())
+                        .unwrap_or(false)
+                    {
                         Some(ip.to_string())
                     } else {
                         None

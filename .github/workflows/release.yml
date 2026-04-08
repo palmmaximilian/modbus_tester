@@ -42,10 +42,26 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Modbus Tester ${{ github.ref_name }}'
-          releaseBody: 'See the assets below to download and install.'
+          releaseBody: |
+            ## What's New
+
+            ### Bug Fixes
+            - **Network scan false positives:** The IP scanner now only reports hosts where a TCP connection is fully established. Previously, hosts that immediately refused the connection (TCP RST) were incorrectly listed as discovered Modbus devices.
+
+            ---
+            See the assets below to download. Use the `.dmg` (macOS) or `.msi`/`.exe` (Windows) installer, or grab a portable zip that needs no installation.
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Remove tar.gz artifact (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          for asset in $(gh release view ${{ github.ref_name }} --json assets --jq '.assets[].name | select(endswith(".tar.gz"))'); do
+            gh release delete-asset ${{ github.ref_name }} "$asset" --yes
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package portable app (macOS)
         if: runner.os == 'macOS'
