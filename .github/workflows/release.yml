@@ -7,6 +7,9 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: write
+
     strategy:
       fail-fast: false
       matrix:
@@ -27,7 +30,6 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          # Universal macOS binary (Intel + Apple Silicon in one)
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Install JS dependencies
@@ -41,6 +43,6 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Modbus Tester ${{ github.ref_name }}'
           releaseBody: 'See the assets below to download and install.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
