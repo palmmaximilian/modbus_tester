@@ -46,3 +46,22 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Package portable app (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd src-tauri/target/universal-apple-darwin/release/bundle/macos
+          zip -r "$GITHUB_WORKSPACE/Modbus_Tester_${{ github.ref_name }}_macos_portable.zip" "Modbus Tester.app"
+          gh release upload ${{ github.ref_name }} "$GITHUB_WORKSPACE/Modbus_Tester_${{ github.ref_name }}_macos_portable.zip"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package portable exe (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "src-tauri\target\release\modbus-tester.exe" `
+            -DestinationPath "Modbus_Tester_${{ github.ref_name }}_windows_portable.zip"
+          gh release upload ${{ github.ref_name }} "Modbus_Tester_${{ github.ref_name }}_windows_portable.zip"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
