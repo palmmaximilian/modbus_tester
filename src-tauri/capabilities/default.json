@@ -1,0 +1,12 @@
+{
+  "identifier": "default",
+  "description": "Default capabilities for Modbus Tester",
+  "windows": ["main", "simulator", "probe"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-create",
+    "core:window:allow-close",
+    "core:webview:allow-create-webview-window",
+    "dialog:default"
+  ]
+}
