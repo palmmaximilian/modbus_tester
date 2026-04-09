@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Radar } from 'lucide-react';
+import { Plus, Radar, Pencil, Trash2 } from 'lucide-react';
 import { v4 as uuid } from 'uuid';
 import toast from 'react-hot-toast';
 import { api } from '../../lib/api';
@@ -9,9 +9,11 @@ import ScanDialog from './ScanDialog';
 import AddDeviceDialog from './AddDeviceDialog';
 
 export default function DeviceSidebar() {
-  const { devices, activeDeviceId, setActiveDevice, addDevice, updateDevice } = useAppStore();
   const [showScan, setShowScan] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [editDevice, setEditDevice] = useState<Device | null>(null);
+
+  const { devices, activeDeviceId, setActiveDevice, addDevice, updateDevice, removeDevice } = useAppStore();
 
   const handleConnect = async (device: Device) => {
     if (device.connected) return;
@@ -25,12 +27,27 @@ export default function DeviceSidebar() {
     }
   };
 
+  const handleEdit = async (updated: Device) => {
+    // disconnect old connection if any
+    const old = devices.find((d) => d.id === updated.id);
+    if (old?.connected) {
+      await api.disconnectDevice(updated.id).catch(() => {});
+    }
+    updateDevice(updated.id, { ...updated, connected: false });
+    await handleConnect({ ...updated, connected: false });
+  };
+
+  const handleRemove = async (device: Device) => {
+    if (device.connected) await api.disconnectDevice(device.id).catch(() => {});
+    removeDevice(device.id);
+  };
+
   const handleAddFromScan = async (ip: string, port: number) => {
     const device: Device = {
       id: uuid(),
       ip,
       port,
-      unitId: 1,
+      unitId: 255,
       name: ip,
       connected: false,
     };
@@ -65,7 +82,7 @@ export default function DeviceSidebar() {
           </li>
         )}
         {devices.map((d) => (
-          <li key={d.id}>
+          <li key={d.id} className="group relative">
             <button
               onClick={() => {
                 handleConnect(d);
@@ -82,9 +99,25 @@ export default function DeviceSidebar() {
               />
               <div className="min-w-0">
                 <div className="text-sm font-medium text-gray-800 truncate">{d.name}</div>
-                <div className="text-xs text-gray-400 font-mono truncate">{d.ip}:{d.port}</div>
+                <div className="text-xs text-gray-400 font-mono truncate">{d.ip}:{d.port} · {d.unitId}</div>
               </div>
             </button>
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 hidden group-hover:flex gap-0.5">
+              <button
+                onClick={(e) => { e.stopPropagation(); setEditDevice(d); }}
+                title="Edit"
+                className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-700"
+              >
+                <Pencil size={12} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); handleRemove(d); }}
+                title="Remove"
+                className="p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-500"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
           </li>
         ))}
       </ul>
@@ -99,6 +132,13 @@ export default function DeviceSidebar() {
             addDevice(device);
             handleConnect(device);
           }}
+        />
+      )}
+      {editDevice && (
+        <AddDeviceDialog
+          existing={editDevice}
+          onClose={() => setEditDevice(null)}
+          onAdd={handleEdit}
         />
       )}
     </aside>

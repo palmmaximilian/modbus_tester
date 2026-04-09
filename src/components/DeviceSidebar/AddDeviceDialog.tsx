@@ -6,19 +6,20 @@ import type { Device } from '../../types';
 interface Props {
   onClose: () => void;
   onAdd: (device: Device) => void;
+  existing?: Device; // if provided, dialog is in edit mode
 }
 
-export default function AddDeviceDialog({ onClose, onAdd }: Props) {
-  const [ip, setIp] = useState('');
-  const [port, setPort] = useState(502);
-  const [unitId, setUnitId] = useState(1);
-  const [name, setName] = useState('');
+export default function AddDeviceDialog({ onClose, onAdd, existing }: Props) {
+  const [ip, setIp] = useState(existing?.ip ?? '');
+  const [port, setPort] = useState(existing?.port ?? 502);
+  const [unitId, setUnitId] = useState(existing?.unitId ?? 1);
+  const [name, setName] = useState(existing?.name ?? '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!ip.trim()) return;
     onAdd({
-      id: uuid(),
+      id: existing?.id ?? uuid(),
       ip: ip.trim(),
       port,
       unitId,
@@ -29,7 +30,7 @@ export default function AddDeviceDialog({ onClose, onAdd }: Props) {
   };
 
   return (
-    <Modal title="Add Device" onClose={onClose}>
+    <Modal title={existing ? 'Edit Device' : 'Add Device'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="block text-xs text-gray-500 mb-1">IP Address</label>
@@ -52,13 +53,13 @@ export default function AddDeviceDialog({ onClose, onAdd }: Props) {
             />
           </div>
           <div className="flex-1">
-            <label className="block text-xs text-gray-500 mb-1">Unit ID</label>
+            <label className="block text-xs text-gray-500 mb-1">Unit ID (0–255)</label>
             <input
               type="number"
               value={unitId}
               onChange={(e) => setUnitId(Number(e.target.value))}
               min={0}
-              max={247}
+              max={255}
               className="input w-full"
             />
           </div>
@@ -74,7 +75,7 @@ export default function AddDeviceDialog({ onClose, onAdd }: Props) {
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <button type="button" onClick={onClose} className="btn-ghost">Cancel</button>
-          <button type="submit" className="btn-primary">Add & Connect</button>
+          <button type="submit" className="btn-primary">{existing ? 'Save & Reconnect' : 'Add & Connect'}</button>
         </div>
       </form>
     </Modal>

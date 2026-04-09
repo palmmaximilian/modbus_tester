@@ -43,6 +43,8 @@ async function openPopout() {
   }
 }
 
+const HEARTBEAT_INTERVAL_MS = 15_000;
+
 export default function App() {
   const addDevice = useAppStore((s) => s.addDevice);
   const addWatchlistEntry = useAppStore((s) => s.addWatchlistEntry);
@@ -76,6 +78,20 @@ export default function App() {
     })();
 
     return unsub;
+  }, []);
+
+  // Heartbeat: poll each connected device every 15s to keep the TCP socket alive.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const { devices, updateDevice } = useAppStore.getState();
+      for (const device of devices) {
+        if (!device.connected) continue;
+        api.readHoldingRegisters(device.id, 0, 1).catch(() => {
+          updateDevice(device.id, { connected: false });
+        });
+      }
+    }, HEARTBEAT_INTERVAL_MS);
+    return () => clearInterval(interval);
   }, []);
 
   // Receive mark-coil events from the probe window → add to watchlist.

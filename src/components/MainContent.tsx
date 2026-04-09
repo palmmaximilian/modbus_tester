@@ -1,6 +1,7 @@
 import { useAppStore } from '../store/useAppStore';
 import DiscoveryMode from './DiscoveryMode/DiscoveryMode';
 import WatchlistMode from './WatchlistMode/WatchlistMode';
+import ConsolePanel from './ConsolePanel/ConsolePanel';
 
 export default function MainContent() {
   const { activeDeviceId, devices, mode, setMode } = useAppStore();
@@ -53,6 +54,8 @@ export default function MainContent() {
           <WatchlistMode deviceId={activeDeviceId} />
         )}
       </div>
+
+      <ConsolePanel />
     </main>
   );
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Trash2, RefreshCw, Play, Square } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { v4 as uuid } from 'uuid';
-import { api } from '../../lib/api';
+import { loggedApi as api } from '../../lib/loggedApi';
 import { useAppStore } from '../../store/useAppStore';
 import type { RegisterType, WatchlistEntry } from '../../types';
 
@@ -38,6 +38,12 @@ export default function WatchlistMode({ deviceId }: Props) {
   // Write state per entry
   const [writeId, setWriteId] = useState<string | null>(null);
   const [writeVal, setWriteVal] = useState('');
+
+  // FC16 write-block state
+  const [showWriteBlock, setShowWriteBlock] = useState(false);
+  const [wbStart, setWbStart] = useState('');
+  const [wbValues, setWbValues] = useState('');
+  const [wbBusy, setWbBusy] = useState(false);
 
   useEffect(() => {
     // Load watchlist from disk on mount
@@ -138,6 +144,25 @@ export default function WatchlistMode({ deviceId }: Props) {
     }
   };
 
+  const handleWriteBlock = async () => {
+    const start = parseInt(wbStart, 10);
+    if (isNaN(start) || start < 0 || start > 65535) { toast.error('Invalid start address'); return; }
+    const values = wbValues.split(',').map((s) => parseInt(s.trim(), 10));
+    if (values.some(isNaN) || values.some((v) => v < 0 || v > 65535)) {
+      toast.error('Values must be comma-separated integers 0–65535'); return;
+    }
+    if (values.length === 0) { toast.error('Enter at least one value'); return; }
+    setWbBusy(true);
+    try {
+      await api.writeMultipleRegisters(deviceId, start, values);
+      toast.success(`FC16: wrote ${values.length} register${values.length > 1 ? 's' : ''} from address ${start}`);
+    } catch (e) {
+      toast.error(`FC16 write failed: ${String(e)}`);
+    } finally {
+      setWbBusy(false);
+    }
+  };
+
   const formatValue = (entry: WatchlistEntry): string => {
     const v = liveValues[entry.id];
     if (v === undefined) return '—';
@@ -186,9 +211,50 @@ export default function WatchlistMode({ deviceId }: Props) {
         </div>
 
         <span className="ml-auto text-xs text-gray-400">{entries.length} entries</span>
+        <button
+          onClick={() => setShowWriteBlock((v) => !v)}
+          className={`btn-ghost text-sm py-1.5 ${showWriteBlock ? 'bg-blue-50 text-blue-600' : ''}`}
+        >
+          Write Block (FC16)…
+        </button>
       </div>
 
-      {/* Table */}
+      {/* FC16 write-block panel */}
+      {showWriteBlock && (
+        <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 border-b border-blue-100 flex-wrap">
+          <span className="text-xs font-medium text-blue-700">FC16 Write Block</span>
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs text-gray-500">Start address</label>
+            <input
+              type="number"
+              value={wbStart}
+              onChange={(e) => setWbStart(e.target.value)}
+              className="input w-24 text-sm py-1"
+              min={0}
+              max={65535}
+            />
+          </div>
+          <div className="flex items-center gap-1.5 flex-1">
+            <label className="text-xs text-gray-500">Values (comma-separated)</label>
+            <input
+              type="text"
+              value={wbValues}
+              onChange={(e) => setWbValues(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleWriteBlock(); }}
+              placeholder="e.g. 100, 200, 300"
+              className="input text-sm py-1 flex-1 min-w-48"
+            />
+          </div>
+          <button
+            onClick={handleWriteBlock}
+            disabled={wbBusy}
+            className="btn-primary text-sm py-1.5"
+          >
+            {wbBusy ? 'Writing…' : 'Send'}
+          </button>
+          <button onClick={() => setShowWriteBlock(false)} className="btn-ghost text-sm py-1.5">✕</button>
+        </div>
+      )}
       <div className="flex-1 overflow-auto">
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 text-sm gap-2">

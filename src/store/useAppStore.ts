@@ -1,11 +1,30 @@
 import { create } from 'zustand';
 import type { Device, WatchlistEntry, AppMode } from '../types';
 
+export type LogLevel = 'tx' | 'rx' | 'error';
+
+export interface LogEntry {
+  id: number;
+  ts: number;       // Date.now()
+  level: LogLevel;
+  deviceId: string | null;
+  fc: string;       // e.g. "FC3", "FC16"
+  detail: string;   // e.g. "addr=0 count=10" / "addr=0 [100,200]"
+  result?: string;  // response summary or error message
+}
+
+const MAX_LOG = 500;
+let _logSeq = 0;
+
 interface AppState {
   devices: Device[];
   activeDeviceId: string | null;
   mode: AppMode;
   watchlists: Record<string, WatchlistEntry[]>; // keyed by device id
+
+  log: LogEntry[];
+  pushLog: (entry: Omit<LogEntry, 'id' | 'ts'>) => void;
+  clearLog: () => void;
 
   addDevice: (device: Device) => void;
   updateDevice: (id: string, patch: Partial<Device>) => void;
@@ -24,6 +43,18 @@ export const useAppStore = create<AppState>((set) => ({
   activeDeviceId: null,
   mode: 'discovery',
   watchlists: {},
+  log: [],
+
+  pushLog: (entry) =>
+    set((s) => {
+      const full: LogEntry = { id: ++_logSeq, ts: Date.now(), ...entry };
+      const log = s.log.length >= MAX_LOG
+        ? [...s.log.slice(s.log.length - MAX_LOG + 1), full]
+        : [...s.log, full];
+      return { log };
+    }),
+
+  clearLog: () => set({ log: [] }),
 
   addDevice: (device) =>
     set((s) => {
