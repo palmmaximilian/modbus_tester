@@ -52,6 +52,7 @@ pub fn run() {
         .manage(DeviceState::new())
         .manage(SimulatorAppState::new())
         .invoke_handler(tauri::generate_handler![
+            commands::get_local_subnets,
             commands::scan_network,
             commands::connect_device,
             commands::disconnect_device,

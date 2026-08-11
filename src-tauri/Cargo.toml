@@ -18,6 +18,7 @@ serde_json  = "1"
 tokio       = { version = "1", features = ["full"] }
 tokio-modbus = { version = "0.14", default-features = false, features = ["tcp", "tcp-server"] }
 uuid        = { version = "1", features = ["v4"] }
+if-addrs    = "0.13"
 
 [profile.release]
 opt-level = "s"

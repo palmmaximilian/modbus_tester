@@ -5,6 +5,9 @@ export const api = {
   scanNetwork: (startIp: string, endIp: string, port: number): Promise<string[]> =>
     invoke('scan_network', { startIp, endIp, port }),
 
+  getLocalSubnets: (): Promise<{ interface: string; start: string; end: string }[]> =>
+    invoke('get_local_subnets'),
+
   connectDevice: (deviceId: string, ip: string, port: number, unitId: number): Promise<void> =>
     invoke('connect_device', { deviceId, ip, port, unitId }),
 

@@ -15,6 +15,28 @@ export default function ScanDialog({ onClose, onAdd }: Props) {
   const [scanning, setScanning] = useState(false);
   const [found, setFound] = useState<string[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [subnets, setSubnets] = useState<{ interface: string; start: string; end: string }[] | null>(null);
+  const [loadingSubnets, setLoadingSubnets] = useState(false);
+
+  const handleDetectSubnet = async () => {
+    setLoadingSubnets(true);
+    try {
+      const result = await api.getLocalSubnets();
+      if (result.length === 0) {
+        toast('No local interfaces found');
+      } else if (result.length === 1) {
+        setStartIp(result[0].start);
+        setEndIp(result[0].end);
+        setSubnets(null);
+      } else {
+        setSubnets(result);
+      }
+    } catch (e) {
+      toast.error(String(e));
+    } finally {
+      setLoadingSubnets(false);
+    }
+  };
 
   const handleScan = async () => {
     setScanning(true);
@@ -73,7 +95,32 @@ export default function ScanDialog({ onClose, onAdd }: Props) {
               className="input w-full"
             />
           </div>
+          <div className="pb-0.5">
+            <button
+              onClick={handleDetectSubnet}
+              disabled={loadingSubnets}
+              title="Auto-fill local subnet"
+              className="btn-ghost text-xs px-2 h-8"
+            >
+              {loadingSubnets ? '…' : 'Local'}
+            </button>
+          </div>
         </div>
+
+        {subnets && (
+          <div className="border rounded divide-y text-sm">
+            {subnets.map((s) => (
+              <button
+                key={s.interface}
+                onClick={() => { setStartIp(s.start); setEndIp(s.end); setSubnets(null); }}
+                className="w-full text-left px-3 py-2 hover:bg-gray-50 font-mono"
+              >
+                <span className="text-gray-500 mr-2">{s.interface}</span>
+                {s.start} – {s.end}
+              </button>
+            ))}
+          </div>
+        )}
 
         <button
           onClick={handleScan}

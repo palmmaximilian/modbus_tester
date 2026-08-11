@@ -15,6 +15,39 @@ use crate::scanner::scan_range;
 
 type CmdResult<T> = Result<T, String>;
 
+// ─── Local subnet detection ───────────────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+pub struct SubnetInfo {
+    pub interface: String,
+    pub start: String,
+    pub end: String,
+}
+
+#[tauri::command]
+pub fn get_local_subnets() -> Vec<SubnetInfo> {
+    let mut result = Vec::new();
+    if let Ok(ifaces) = if_addrs::get_if_addrs() {
+        for iface in ifaces {
+            if iface.is_loopback() {
+                continue;
+            }
+            if let if_addrs::IfAddr::V4(v4) = iface.addr {
+                let ip = u32::from(v4.ip);
+                let mask = u32::from(v4.netmask);
+                let net_start = ip & mask;
+                let net_end = net_start | !mask;
+                result.push(SubnetInfo {
+                    interface: iface.name.clone(),
+                    start: Ipv4Addr::from(net_start).to_string(),
+                    end: Ipv4Addr::from(net_end).to_string(),
+                });
+            }
+        }
+    }
+    result
+}
+
 // ─── Network scan ─────────────────────────────────────────────────────────────
 
 #[tauri::command]

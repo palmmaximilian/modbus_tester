@@ -1,0 +1,18 @@
+
+> modbus-tester@0.2.3 tauri
+> tauri dev
+
+     Running BeforeDevCommand (`npm run dev`)
+
+> modbus-tester@0.2.3 dev
+> vite
+
+
+  VITE v6.4.2  ready in 305 ms
+
+  ➜  Local:   http://localhost:1420/
+     Running DevCommand (`cargo  run --no-default-features --color always --`)
+        Info Watching /Users/max/Documents/GitHub/modbus_tester/src-tauri for changes...
+[1m[92m   Compiling[0m modbus-tester v0.1.0 (/Users/max/Documents/GitHub/modbus_tester/src-tauri)
+[1m[96m    Building[0m [=======================> ] 391/393: modbus-tester               [1m[96m    Building[0m [=======================> ] 392/393: modbus-tester(bin)          [K[1m[92m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 9.56s
+[1m[92m     Running[0m `target/debug/modbus-tester`
